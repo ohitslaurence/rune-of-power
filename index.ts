@@ -59,7 +59,7 @@ async function run() {
     }
 
     iteration += 1;
-    if (iteration === 100) {
+    if (iteration === 100000) {
       iteration = 0;
       await sendSlackMessage(
         `Next Million: current value: ${nonce.toHexString()}, highest: ${highest?.toHexString()}`
