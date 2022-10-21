@@ -10,6 +10,7 @@
     "undici": "^5.11.0"
   },
   "scripts": {
-    "start": "ts-node index.ts"
+    "start": "ts-node index.ts",
+    "tsc": "tsc"
   }
 }
