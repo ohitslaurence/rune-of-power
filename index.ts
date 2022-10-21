@@ -3,13 +3,12 @@ import { BigNumber, ethers } from "ethers";
 import { sendSlackMessage } from "./slack";
 
 const address = process.env.ADDRESS ?? "";
+const highest = process.env.HIGHEST_POWER ?? "";
+const starting = process.env.STARTING_POINT ?? "";
 
-const HIGHEST_NUMBER = BigNumber.from(
-  "115792089237315814261404855957085707744247292360214651484117184484849245078057"
-);
+const HIGHEST_NUMBER = BigNumber.from(highest);
 
 const getHashFromNonce = (nonce: BigNumber) => {
-  console.log({ address });
   const packedValues = ethers.utils.solidityPack(
     ["uint256", "uint256", "address"],
     [HIGHEST_NUMBER, nonce, address]
@@ -21,44 +20,55 @@ const getHashFromNonce = (nonce: BigNumber) => {
 const getNextHighestHash = (nonce: BigNumber) => {
   const hashes: BigNumber[] = [];
 
-  for (let index = 0; index < 10; index++) {
+  for (let index = 0; index < 1000; index++) {
     const hash = getHashFromNonce(nonce.add(index));
     hashes.push(hash);
   }
 
-  return hashes.reduce((acc, cur) => {
+  const largest = hashes.reduce((acc, cur) => {
     return acc.gte(cur) ? acc : cur;
   });
+  const index = hashes.indexOf(largest);
+
+  return { nonceHash: largest, index };
 };
 
 async function run() {
   await sendSlackMessage(`Started Mining for address: ${address}`);
 
-  let nonce = BigNumber.from("600274300000");
+  let nonce = BigNumber.from(starting);
 
   let iteration = 0;
   let found = false;
+  let highest = null;
 
   while (!found) {
-    const nonceHash = getNextHighestHash(nonce);
+    const { nonceHash, index } = getNextHighestHash(nonce);
     const isBigger = nonceHash.gt(HIGHEST_NUMBER);
+
+    if ((highest && nonceHash.gte(highest)) || !highest) {
+      highest = nonceHash;
+    }
 
     if (isBigger) {
       found = true;
-    }
-
-    iteration += 1;
-    if (iteration === 100000) {
-      iteration = 0;
+      const finalNonce = nonce.add(index);
       await sendSlackMessage(
-        `Next Million: current value: ${nonce.toHexString()}, `
+        `Found the largest value!! current nonce: ${nonce}, index: ${index}, final nonce: ${finalNonce.toHexString()}, value: ${nonceHash.toHexString()}`
       );
     }
 
-    nonce = nonce.add(10);
+    iteration += 1;
+    if (iteration === 100) {
+      iteration = 0;
+      await sendSlackMessage(
+        `Next Million: current value: ${nonce.toHexString()}, highest: ${highest?.toHexString()}`
+      );
+    }
+
+    nonce = nonce.add(1000);
   }
 
-  await sendSlackMessage(`Found the largest value: ${nonce.toHexString()}`);
   return;
 }
 
