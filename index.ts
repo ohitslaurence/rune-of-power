@@ -17,22 +17,6 @@ const getHashFromNonce = (nonce: BigNumber) => {
   return BigNumber.from(hash);
 };
 
-const getNextHighestHash = (nonce: BigNumber) => {
-  const hashes: BigNumber[] = [];
-
-  for (let index = 0; index < 1000; index++) {
-    const hash = getHashFromNonce(nonce.add(index));
-    hashes.push(hash);
-  }
-
-  const largest = hashes.reduce((acc, cur) => {
-    return acc.gte(cur) ? acc : cur;
-  });
-  const index = hashes.indexOf(largest);
-
-  return { nonceHash: largest, index };
-};
-
 async function run() {
   await sendSlackMessage(`Started Mining for address: ${address}`);
 
@@ -41,32 +25,37 @@ async function run() {
   let iteration = 0;
   let found = false;
   let highest = null;
+  let highestNonce = null;
 
   while (!found) {
-    const { nonceHash, index } = getNextHighestHash(nonce);
+    const nonceHash = getHashFromNonce(nonce);
     const isBigger = nonceHash.gt(HIGHEST_NUMBER);
 
     if ((highest && nonceHash.gte(highest)) || !highest) {
       highest = nonceHash;
+      highestNonce = nonce;
     }
 
     if (isBigger) {
       found = true;
-      const finalNonce = nonce.add(index);
+
       await sendSlackMessage(
-        `Found the largest value!! current nonce: ${nonce}, index: ${index}, final nonce: ${finalNonce.toHexString()}, value: ${nonceHash.toHexString()}`
+        `Found the largest value!!  nonce: ${nonce.toHexString()}, value: ${nonceHash.toHexString()}`
       );
     }
 
     iteration += 1;
-    if (iteration === 100000) {
+    if (iteration === 100000000) {
       iteration = 0;
+      console.log(
+        `Next Million: current value: ${nonce.toHexString()}, highest: ${highest?.toHexString()}`
+      );
       await sendSlackMessage(
         `Next Million: current value: ${nonce.toHexString()}, highest: ${highest?.toHexString()}`
       );
     }
 
-    nonce = nonce.add(1000);
+    nonce = nonce.add(1);
   }
 
   return;
